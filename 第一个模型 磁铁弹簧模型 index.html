@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>磁铁相互作用模型 - 相同磁性磁铁</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            padding: 25px;
+            overflow: hidden;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .model {
+            background-color: #f9f9f9;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+            border: 1px solid #e1e1e1;
+            margin-bottom: 30px;
+        }
+        
+        .model-title {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-weight: bold;
+            font-size: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+        }
+        
+        .canvas-container {
+            position: relative;
+            height: 220px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .control-group {
+            display: flex;
+            gap: 12px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 10px 15px;
+            background: linear-gradient(to bottom, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+        }
+        
+        button:hover {
+            background: linear-gradient(to bottom, #2980b9, #2573a7);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 8px rgba(0,0,0,0.15);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .explanation {
+            background: linear-gradient(to right, #e8f4fc, #d4e6f1);
+            border-left: 5px solid #3498db;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 25px;
+        }
+        
+        .explanation h3 {
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-size: 20px;
+        }
+        
+        .magnet-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        @media (max-width: 768px) {
+            .control-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>磁铁相互作用模型</h1>
+        </header>
+        
+        <div class="model">
+            <h2 class="model-title">模型一：相同磁性磁铁</h2>
+            <div class="canvas-container">
+                <canvas id="modelCanvas"></canvas>
+            </div>
+            <div class="controls">
+                <div class="control-group">
+                    <button id="resetModel">重置系统</button>
+                    <button id="releaseModel">释放右侧磁铁</button>
+                </div>
+                <div class="control-group">
+                    <button id="compressModel">压缩弹簧</button>
+                </div>
+            </div>
+            <div class="magnet-info">
+                <span>左侧磁铁: 中等磁性</span>
+                <span>右侧磁铁: 中等磁性</span>
+            </div>
+        </div>
+        
+        <div class="explanation">
+            <h3>模型说明</h3>
+            <ul>
+                <li><strong>磁铁</strong> 代表具有不同磁性的物体</li>
+                <li><strong>磁铁间的引力</strong> 代表磁铁间的相互吸引</li>
+                <li><strong>磁铁间的斥力</strong> 代表当磁铁过于接近时产生的排斥</li>
+                <li><strong>弹簧</strong> 代表连接两个磁铁的弹性介质</li>
+                <li><strong>平衡点</strong> 代表引力与斥力相等的稳定位置，系统能量最低</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // 获取画布和上下文
+        const modelCanvas = document.getElementById('modelCanvas');
+        const modelCtx = modelCanvas.getContext('2d');
+        
+        // 设置画布尺寸
+        function setCanvasSize() {
+            const containerWidth = modelCanvas.parentElement.clientWidth;
+            modelCanvas.width = containerWidth;
+            modelCanvas.height = 220;
+        }
+        
+        setCanvasSize();
+        window.addEventListener('resize', setCanvasSize);
+        
+        // 模型参数：相同磁性磁铁
+        let modelState = {
+            magnetA: { x: 150, y: 110, radius: 28, color: '#3498db', fixed: true, strength: 1 },
+            magnetB: { x: 450, y: 110, radius: 28, color: '#3498db', fixed: true, strength: 1 },
+            spring: { 
+                length: 140, 
+                k: 0.08, 
+                centerOffset: 0, 
+                visible: true,
+                naturalLength: 140,
+                compressedLength: 70
+            },
+            isDragging: false,
+            dragMagnet: null,
+            isCompressing: false
+        };
+        
+        // 绘制光滑杆
+        function drawRod(ctx, canvas) {
+            ctx.beginPath();
+            ctx.moveTo(30, 110);
+            ctx.lineTo(canvas.width - 30, 110);
+            ctx.strokeStyle = '#95a5a6';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+            
+            const gradient = ctx.createLinearGradient(0, 105, 0, 115);
+            gradient.addColorStop(0, '#bdc3c7');
+            gradient.addColorStop(0.5, '#ecf0f1');
+            gradient.addColorStop(1, '#bdc3c7');
+            
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 6;
+            ctx.stroke();
+        }
+        
+        // 绘制立体磁铁
+        function drawMagnet(ctx, magnet) {
+            const gradient = ctx.createRadialGradient(
+                magnet.x, magnet.y - magnet.radius/3, 0,
+                magnet.x, magnet.y, magnet.radius
+            );
+            gradient.addColorStop(0, magnet.color);
+            gradient.addColorStop(1, shadeColor(magnet.color, -40));
+            
+            ctx.beginPath();
+            ctx.arc(magnet.x, magnet.y, magnet.radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.strokeStyle = shadeColor(magnet.color, -60);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(magnet.x - magnet.radius/3, magnet.y - magnet.radius/3, magnet.radius/3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('N', magnet.x - magnet.radius/2, magnet.y);
+            ctx.fillText('S', magnet.x + magnet.radius/2, magnet.y);
+            
+            ctx.beginPath();
+            ctx.ellipse(magnet.x, magnet.y + magnet.radius + 3, magnet.radius, magnet.radius/3, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fill();
+        }
+        
+        // 绘制弹簧
+        function drawSpring(ctx, magnetA, magnetB, centerOffset, visible, isCompressing, compressionRatio) {
+            if (!visible) return 0;
+            
+            const dx = magnetB.x - magnetA.x;
+            const distance = Math.abs(dx);
+            
+            const gap = 10;
+            const startX = magnetA.x + magnetA.radius + gap;
+            const endX = magnetB.x - magnetB.radius - gap;
+            
+            const centerX = startX + (endX - startX) * (0.5 + centerOffset);
+            
+            ctx.beginPath();
+            ctx.moveTo(startX, magnetA.y);
+            
+            let amplitude = 12;
+            let wavelength = 15;
+            
+            if (isCompressing) {
+                amplitude = 8;
+                wavelength = 10;
+            }
+            
+            const firstSegmentLength = centerX - startX;
+            const segmentsFirst = Math.max(4, Math.floor(firstSegmentLength / wavelength));
+            
+            for (let i = 0; i <= segmentsFirst; i++) {
+                const x = startX + i * (firstSegmentLength / segmentsFirst);
+                const progress = i / segmentsFirst;
+                const currentAmplitude = amplitude * Math.sin(progress * Math.PI);
+                const y = magnetA.y + (i % 2 === 0 ? -currentAmplitude : currentAmplitude);
+                ctx.lineTo(x, y);
+            }
+            
+            const secondSegmentLength = endX - centerX;
+            const segmentsSecond = Math.max(4, Math.floor(secondSegmentLength / wavelength));
+            
+            for (let i = 0; i <= segmentsSecond; i++) {
+                const x = centerX + i * (secondSegmentLength / segmentsSecond);
+                const progress = i / segmentsSecond;
+                const currentAmplitude = amplitude * Math.sin(progress * Math.PI);
+                const y = magnetA.y + (i % 2 === 0 ? currentAmplitude : -currentAmplitude);
+                ctx.lineTo(x, y);
+            }
+            
+            ctx.strokeStyle = '#27ae60';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(centerX, magnetA.y, 6, 0, Math.PI * 2);
+            const centerGradient = ctx.createRadialGradient(
+                centerX, magnetA.y, 0,
+                centerX, magnetA.y, 6
+            );
+            centerGradient.addColorStop(0, '#f1c40f');
+            centerGradient.addColorStop(1, '#f39c12');
+            ctx.fillStyle = centerGradient;
+            ctx.fill();
+            
+            ctx.strokeStyle = '#d35400';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            return centerOffset;
+        }
+        
+        // 计算磁力 - 确保存在平衡点
+        function calculateMagneticForce(distance) {
+            const equilibriumDistance = 80;
+            
+            if (distance > equilibriumDistance) {
+                return -8000 / (distance * distance);
+            } else {
+                const compression = equilibriumDistance - distance;
+                return 1000000 / (compression * compression * compression);
+            }
+        }
+        
+        // 辅助函数：调整颜色深浅
+        function shadeColor(color, percent) {
+            let R = parseInt(color.substring(1,3),16);
+            let G = parseInt(color.substring(3,5),16);
+            let B = parseInt(color.substring(5,7),16);
+
+            R = parseInt(R * (100 + percent) / 100);
+            G = parseInt(G * (100 + percent) / 100);
+            B = parseInt(B * (100 + percent) / 100);
+
+            R = (R<255)?R:255;  
+            G = (G<255)?G:255;  
+            B = (B<255)?B:255;  
+
+            R = Math.round(R);
+            G = Math.round(G);
+            B = Math.round(B);
+
+            const RR = ((R.toString(16).length==1)?"0"+R.toString(16):R.toString(16));
+            const GG = ((G.toString(16).length==1)?"0"+G.toString(16):G.toString(16));
+            const BB = ((B.toString(16).length==1)?"0"+B.toString(16):B.toString(16));
+
+            return "#"+RR+GG+BB;
+        }
+        
+        // 绘制模型
+        function drawModel() {
+            modelCtx.clearRect(0, 0, modelCanvas.width, modelCanvas.height);
+            
+            drawRod(modelCtx, modelCanvas);
+            
+            const dx = modelState.magnetB.x - modelState.magnetA.x;
+            const currentLength = Math.abs(dx) - modelState.magnetA.radius - modelState.magnetB.radius - 20;
+            const compressionRatio = 1 - (currentLength / modelState.spring.naturalLength);
+            
+            drawSpring(modelCtx, 
+                modelState.magnetA, 
+                modelState.magnetB, 
+                modelState.spring.centerOffset,
+                modelState.spring.visible,
+                modelState.isCompressing,
+                compressionRatio);
+            
+            drawMagnet(modelCtx, modelState.magnetA);
+            drawMagnet(modelCtx, modelState.magnetB);
+        }
+        
+        // 计算磁铁间的力
+        function calculateForces() {
+            const dx = modelState.magnetB.x - modelState.magnetA.x;
+            const distance = Math.abs(dx);
+            
+            const netDistance = distance - modelState.magnetA.radius - modelState.magnetB.radius - 20;
+            
+            const magneticForce = calculateMagneticForce(netDistance);
+            const direction = dx > 0 ? 1 : -1;
+            
+            if (!modelState.magnetA.fixed) {
+                modelState.magnetA.x += direction * magneticForce * 0.01 * modelState.magnetA.strength;
+            }
+            
+            if (!modelState.magnetB.fixed) {
+                modelState.magnetB.x -= direction * magneticForce * 0.01 * modelState.magnetB.strength;
+            }
+            
+            if (modelState.spring.visible) {
+                const springLength = modelState.spring.length;
+                const currentLength = netDistance;
+                const springForce = modelState.spring.k * (currentLength - springLength);
+                
+                if (!modelState.magnetA.fixed) {
+                    modelState.magnetA.x += direction * springForce * 0.1 * modelState.magnetA.strength;
+                }
+                
+                if (!modelState.magnetB.fixed) {
+                    modelState.magnetB.x -= direction * springForce * 0.1 * modelState.magnetB.strength;
+                }
+            }
+            
+            if (modelState.isCompressing) {
+                const targetX = modelState.magnetA.x + modelState.magnetA.radius + modelState.magnetB.radius + modelState.spring.compressedLength;
+                
+                if (modelState.magnetB.x > targetX) {
+                    modelState.magnetB.x -= 3;
+                } else {
+                    modelState.magnetB.x = targetX;
+                }
+            }
+            
+            const margin = 30;
+            
+            modelState.magnetA.x = Math.max(margin + modelState.magnetA.radius, 
+                              Math.min(modelCanvas.width - margin - modelState.magnetA.radius, modelState.magnetA.x));
+            modelState.magnetB.x = Math.max(margin + modelState.magnetB.radius, 
+                              Math.min(modelCanvas.width - margin - modelState.magnetB.radius, modelState.magnetB.x));
+        }
+        
+        // 动画循环
+        function animate() {
+            calculateForces();
+            drawModel();
+            requestAnimationFrame(animate);
+        }
+        
+        // 初始化
+        function init() {
+            resetModel();
+            animate();
+            setupEventListeners();
+        }
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            document.getElementById('resetModel').addEventListener('click', resetModel);
+            document.getElementById('releaseModel').addEventListener('click', releaseModel);
+            document.getElementById('compressModel').addEventListener('mousedown', () => startCompress());
+            document.getElementById('compressModel').addEventListener('mouseup', () => stopCompress());
+            
+            setupDrag();
+        }
+        
+        // 设置拖动功能
+        function setupDrag() {
+            modelCanvas.addEventListener('mousedown', (e) => {
+                const rect = modelCanvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const dx = x - modelState.magnetB.x;
+                const dy = y - modelState.magnetB.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < modelState.magnetB.radius) {
+                    modelState.isDragging = true;
+                    modelState.dragMagnet = modelState.magnetB;
+                }
+            });
+            
+            modelCanvas.addEventListener('mousemove', (e) => {
+                if (modelState.isDragging && modelState.dragMagnet) {
+                    const rect = modelCanvas.getBoundingClientRect();
+                    const newX = e.clientX - rect.left;
+                    
+                    const minX = modelState.magnetA.x + modelState.magnetA.radius + modelState.magnetB.radius + 15;
+                    if (newX > minX) {
+                        modelState.dragMagnet.x = newX;
+                    } else {
+                        modelState.dragMagnet.x = minX;
+                    }
+                }
+            });
+            
+            modelCanvas.addEventListener('mouseup', () => {
+                modelState.isDragging = false;
+                modelState.dragMagnet = null;
+            });
+        }
+        
+        // 重置模型
+        function resetModel() {
+            modelState.magnetA.x = 150;
+            modelState.magnetB.x = 450;
+            modelState.magnetB.fixed = true;
+            modelState.spring.centerOffset = 0;
+            modelState.spring.visible = true;
+            modelState.isCompressing = false;
+        }
+        
+        // 释放磁铁B
+        function releaseModel() {
+            modelState.magnetB.fixed = false;
+        }
+        
+        // 开始压缩弹簧
+        function startCompress() {
+            modelState.isCompressing = true;
+        }
+        
+        // 停止压缩弹簧
+        function stopCompress() {
+            modelState.isCompressing = false;
+        }
+        
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>
